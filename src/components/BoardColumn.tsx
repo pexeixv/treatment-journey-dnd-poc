@@ -1,7 +1,7 @@
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { useDndContext, type UniqueIdentifier } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { useMemo } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Task, TaskCard } from "./TaskCard";
 import { cva } from "class-variance-authority";
 import { Card, CardContent, CardHeader } from "./ui/card";
@@ -25,9 +25,17 @@ interface BoardColumnProps {
   column: Column;
   tasks: Task[];
   isOverlay?: boolean;
+  updateTasks: (tasks: Array<Task>) => void;
+  allTasks: Task[];
 }
 
-export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
+export function BoardColumn({
+  column,
+  tasks,
+  isOverlay,
+  updateTasks,
+  allTasks,
+}: BoardColumnProps) {
   const tasksIds = useMemo(() => {
     return tasks.map((task) => task.id);
   }, [tasks]);
@@ -55,6 +63,13 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
     transform: CSS.Translate.toString(transform),
   };
 
+  const generateUUID = () =>
+    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0,
+        v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+
   const variants = cva(
     "h-[500px] max-h-[500px] w-[350px] max-w-full bg-primary-foreground flex flex-col flex-shrink-0 snap-center",
     {
@@ -68,6 +83,19 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
     }
   );
 
+  const [newTaskName, setNewTaskName] = useState("");
+
+  const createNewTask = (e: FormEvent) => {
+    e.preventDefault();
+    const obj = {
+      id: generateUUID(),
+      columnId: column.id,
+      content: newTaskName,
+    } as Task;
+    updateTasks([...allTasks, obj]);
+    setNewTaskName("");
+  };
+
   return (
     <Card
       ref={setNodeRef}
@@ -76,12 +104,12 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
         dragging: isOverlay ? "overlay" : isDragging ? "over" : undefined,
       })}
     >
-      <CardHeader className="p-4 font-semibold border-b-2 text-left flex flex-row space-between items-center">
+      <CardHeader className="flex flex-row items-center p-4 font-semibold text-left border-b-2 space-between">
         <Button
           variant={"ghost"}
           {...attributes}
           {...listeners}
-          className=" p-1 text-primary/50 -ml-2 h-auto cursor-grab relative"
+          className="relative h-auto p-1 -ml-2 text-primary/50 cursor-grab"
         >
           <span className="sr-only">{`Move column: ${column.title}`}</span>
           <GripVertical />
@@ -89,13 +117,31 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
         <span className="ml-auto"> {column.title}</span>
       </CardHeader>
       <ScrollArea>
-        <CardContent className="flex flex-grow flex-col gap-2 p-2">
+        <CardContent className="flex flex-col flex-grow gap-2 p-2">
           <SortableContext items={tasksIds}>
             {tasks.map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
           </SortableContext>
         </CardContent>
+        <form
+          onSubmit={createNewTask}
+          className="flex w-full gap-4 p-4 mx-auto"
+        >
+          <input
+            type="text"
+            value={newTaskName}
+            onChange={(e) => setNewTaskName(e.target.value)}
+            className="w-full p-2 rounded bg-slate-800"
+            placeholder="Add new task"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 rounded bg-slate-300 text-slate-900"
+          >
+            Add
+          </button>
+        </form>
       </ScrollArea>
     </Card>
   );
@@ -119,7 +165,7 @@ export function BoardContainer({ children }: { children: React.ReactNode }) {
         dragging: dndContext.active ? "active" : "default",
       })}
     >
-      <div className="flex gap-4 items-center flex-row justify-center">
+      <div className="flex flex-row items-center justify-center gap-4">
         {children}
       </div>
       <ScrollBar orientation="horizontal" />

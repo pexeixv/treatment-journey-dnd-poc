@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { BoardColumn, BoardContainer } from "./BoardColumn";
@@ -112,6 +112,8 @@ export function KanbanBoard() {
   const columnsId = useMemo(() => columns.map((col) => col.id), [columns]);
 
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+
+  const [newColumnName, setNewColumnName] = useState("");
 
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
 
@@ -231,6 +233,29 @@ export function KanbanBoard() {
     },
   };
 
+  const slugify = (text: string) =>
+    text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\-]+/g, "")
+      .replace(/\-\-+/g, "-");
+
+  const createNewColumn = (e: FormEvent) => {
+    e.preventDefault();
+    const obj = {
+      id: slugify(newColumnName),
+      title: newColumnName,
+    };
+    setColumns(() => [...columns, obj]);
+    setNewColumnName("");
+  };
+
+  const updateTasks = (updatedTasks: Task[]) => {
+    setTasks(updatedTasks);
+  };
+
   return (
     <DndContext
       accessibility={{
@@ -241,34 +266,34 @@ export function KanbanBoard() {
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
     >
+      <form onSubmit={createNewColumn} className="flex gap-4 mx-auto w-fit">
+        <input
+          type="text"
+          value={newColumnName}
+          onChange={(e) => setNewColumnName(e.target.value)}
+          className="p-2 rounded bg-slate-800"
+          placeholder="Add new column"
+        />
+        <button
+          type="submit"
+          className="px-4 py-2 rounded bg-slate-300 text-slate-900"
+        >
+          Add
+        </button>
+      </form>
       <BoardContainer>
         <SortableContext items={columnsId}>
           {columns.map((col) => (
             <BoardColumn
+              updateTasks={updateTasks}
               key={col.id}
               column={col}
+              allTasks={tasks}
               tasks={tasks.filter((task) => task.columnId === col.id)}
             />
           ))}
         </SortableContext>
       </BoardContainer>
-
-      {"document" in window &&
-        createPortal(
-          <DragOverlay>
-            {activeColumn && (
-              <BoardColumn
-                isOverlay
-                column={activeColumn}
-                tasks={tasks.filter(
-                  (task) => task.columnId === activeColumn.id
-                )}
-              />
-            )}
-            {activeTask && <TaskCard task={activeTask} isOverlay />}
-          </DragOverlay>,
-          document.body
-        )}
     </DndContext>
   );
 
